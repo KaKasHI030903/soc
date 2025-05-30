@@ -1,0 +1,581 @@
+Phase 1  
+DESIGN FILE  
+module phase1 ( 
+input clk, 
+input rst, 
+input code_in, 
+input enable, 
+output reg phase1_done, 
+output reg phase1_fail 
+); 
+parameter IDLE = 3'd0, 
+BIT1 = 3'd1, 
+BIT2 = 3'd2, 
+BIT3 = 3'd3, 
+BIT4 = 3'd4, 
+CHECK = 3'd5; 
+reg [2:0] state, next_state; 
+reg [3:0] shift_reg; 
+always @(posedge clk or posedge rst) begin 
+if (rst) 
+state <= IDLE; 
+else if (enable) 
+state <= next_state; 
+end 
+always @(posedge clk) begin 
+if (enable) begin 
+case (state) 
+IDLE: begin 
+shift_reg <= 4'b0000; 
+phase1_done <= 0; 
+phase1_fail <= 0; 
+end 
+BIT1: shift_reg[3] <= code_in; 
+BIT2: shift_reg[2] <= code_in; 
+BIT3: shift_reg[1] <= code_in; 
+BIT4: shift_reg[0] <= code_in; 
+CHECK: begin 
+if (shift_reg == 4'b1011) 
+phase1_done <= 1; 
+else 
+phase1_fail <= 1; 
+end 
+endcase 
+end 
+end 
+always @(*) begin 
+next_state = state; 
+case (state) 
+IDLE: if (enable) next_state = BIT1; 
+BIT1: next_state = BIT2; 
+BIT2: next_state = BIT3; 
+BIT3: next_state = BIT4; 
+BIT4: next_state = CHECK; 
+CHECK: next_state = IDLE; 
+endcase 
+end 
+endmodule 
+PHASE 1 
+TESTBENCH  
+module phase1_tb; 
+reg clk, rst, code_in, enable; 
+wire phase1_done, phase1_fail; 
+phase1 uut ( 
+.clk(clk), .rst(rst), .code_in(code_in), .enable(enable), 
+.phase1_done(phase1_done), .phase1_fail(phase1_fail) 
+); 
+initial begin 
+$dumpfile("phase1.vcd"); 
+$dumpvars(0, phase1_tb); 
+clk = 0; rst = 1; enable = 0; 
+#5 rst = 0; 
+enable = 1; 
+// Send correct sequence: 1 0 1 1 
+send_bit(1); send_bit(0); send_bit(1); send_bit(1); 
+#10; 
+$finish; 
+end 
+task send_bit(input bit val); 
+begin 
+code_in = val; 
+#10 clk = 1; #10 clk = 0; 
+end 
+endtask 
+endmodule 
+Phase 2 
+Design file  
+module phase2 ( 
+input clk, 
+input rst, 
+input enable, 
+input btn_in,         
+    // user input bit (1 or 0) 
+output reg phase2_done, 
+output reg phase2_fail 
+); 
+parameter IDLE = 2'd0, 
+COLLECT = 2'd1, 
+CHECK = 2'd2; 
+reg [1:0] state, next_state; 
+reg [2:0] input_pattern; 
+reg [1:0] bit_count; 
+always @(posedge clk or posedge rst) begin 
+if (rst) 
+state <= IDLE; 
+else if (enable) 
+state <= next_state; 
+end 
+always @(posedge clk) begin 
+if (enable) begin 
+case (state) 
+IDLE: begin 
+input_pattern <= 3'b000; 
+bit_count <= 0; 
+phase2_done <= 0; 
+phase2_fail <= 0; 
+end 
+COLLECT: begin 
+input_pattern <= {input_pattern[1:0], btn_in}; 
+bit_count <= bit_count + 1; 
+end 
+CHECK: begin 
+if (input_pattern == 3'b110) 
+phase2_done <= 1; 
+else 
+phase2_fail <= 1; 
+end 
+endcase 
+end 
+end 
+always @(*) begin 
+next_state = state; 
+case (state) 
+IDLE: if (enable) next_state = COLLECT; 
+COLLECT: if (bit_count == 2'd3) next_state = CHECK; 
+CHECK: next_state = IDLE; 
+endcase 
+end 
+endmodule 
+TEST BENCH  
+module phase2_tb; 
+reg clk, rst, enable, btn_in; 
+wire phase2_done, phase2_fail; 
+phase2 uut ( 
+.clk(clk), .rst(rst), .enable(enable), .btn_in(btn_in), 
+.phase2_done(phase2_done), .phase2_fail(phase2_fail) 
+); 
+initial begin 
+$dumpfile("phase2.vcd"); 
+$dumpvars(0, phase2_tb); 
+clk = 0; rst = 1; enable = 0; 
+#5 rst = 0; 
+enable = 1; 
+// Send correct pattern: 110 
+send_bit(1); send_bit(1); send_bit(0); 
+#20; 
+$finish; 
+end 
+task send_bit(input bit val); 
+begin 
+btn_in = val; 
+#10 clk = 1; #10 clk = 0; 
+end 
+endtask 
+endmodule 
+Phase 3  
+Design file  
+module phase3 ( 
+input clk, 
+input rst, 
+input enable, 
+input [2:0] dir_in,      
+    // 3-bit direction input 
+output reg phase3_done, 
+output reg phase3_fail 
+); 
+parameter IDLE    = 3'd0, 
+STEP1   = 3'd1, 
+STEP2   = 3'd2, 
+STEP3   = 3'd3, 
+STEP4   = 3'd4, 
+STEP5   = 3'd5, 
+DONE    = 3'd6, 
+FAIL    = 3'd7; 
+parameter UP    = 3'b000, 
+RIGHT = 3'b011, 
+DOWN  = 3'b001, 
+LEFT  = 3'b010; 
+reg [2:0] state, next_state; 
+always @(posedge clk or posedge rst) begin 
+if (rst) 
+state <= IDLE; 
+else if (enable) 
+state <= next_state; 
+end 
+always @(*) begin 
+next_state = state; 
+phase3_done = 0; 
+phase3_fail = 0; 
+case (state) 
+IDLE:   next_state = STEP1; 
+STEP1:  next_state = (dir_in == UP)    ? STEP2 : FAIL; 
+STEP2:  next_state = (dir_in == RIGHT) ? STEP3 : FAIL; 
+STEP3:  next_state = (dir_in == DOWN)  ? STEP4 : FAIL; 
+STEP4:  next_state = (dir_in == LEFT)  ? STEP5 : FAIL; 
+STEP5:  next_state = (dir_in == UP)    ? DONE  : FAIL; 
+DONE:   phase3_done = 1; 
+FAIL:   phase3_fail = 1; 
+endcase 
+end 
+endmodule 
+TESTBENCH  
+module phase3_tb; 
+reg clk, rst, enable; 
+reg [2:0] dir_in; 
+wire phase3_done, phase3_fail; 
+phase3 uut ( 
+.clk(clk), .rst(rst), .enable(enable), 
+.dir_in(dir_in), 
+.phase3_done(phase3_done), 
+.phase3_fail(phase3_fail) 
+); 
+initial begin 
+$dumpfile("phase3.vcd"); 
+$dumpvars(0, phase3_tb); 
+clk = 0; rst = 1; enable = 0; 
+#5 rst = 0; enable = 1; 
+// Correct sequence: UP, RIGHT, DOWN, LEFT, UP 
+input_dir(3'b000);  // UP 
+input_dir(3'b011);  // RIGHT 
+input_dir(3'b001);  // DOWN 
+input_dir(3'b010);  // LEFT 
+input_dir(3'b000);  // UP 
+#20 $finish; 
+end 
+task input_dir(input [2:0] val); 
+begin 
+dir_in = val; 
+#10 clk = 1; #10 clk = 0; 
+end 
+endtask 
+endmodule 
+Phase 4  
+Design file  
+module phase4 ( 
+input clk, 
+input rst, 
+input enable, 
+input [7:0] plate_in, 
+output reg phase4_done, 
+output reg phase4_fail 
+); 
+parameter IDLE   = 3'd0, 
+PLATE1 = 3'd1, 
+PLATE2 = 3'd2, 
+PLATE3 = 3'd3, 
+DONE   = 3'd4, 
+FAIL   = 3'd5; 
+parameter P1 = 8'b10101010, 
+P2 = 8'b11001100, 
+P3 = 8'b11110000; 
+reg [2:0] state, next_state; 
+always @(posedge clk or posedge rst) begin 
+if (rst) 
+state <= IDLE; 
+else if (enable) 
+state <= next_state; 
+end 
+always @(*) begin 
+next_state = state; 
+phase4_done = 0; 
+phase4_fail = 0; 
+case (state) 
+IDLE:   next_state = PLATE1; 
+PLATE1: next_state = (plate_in == P1) ? PLATE2 : FAIL; 
+PLATE2: next_state = (plate_in == P2) ? PLATE3 : FAIL; 
+PLATE3: next_state = (plate_in == P3) ? DONE   : FAIL; 
+DONE:   phase4_done = 1; 
+FAIL:   phase4_fail = 1; 
+endcase 
+end 
+endmodule 
+TEST BENCH  
+module phase4_tb; 
+reg clk, rst, enable; 
+reg [7:0] plate_in; 
+wire phase4_done, phase4_fail; 
+phase4 uut ( 
+.clk(clk), .rst(rst), .enable(enable), 
+.plate_in(plate_in), 
+.phase4_done(phase4_done), 
+.phase4_fail(phase4_fail) 
+); 
+initial begin 
+$dumpfile("phase4.vcd"); 
+$dumpvars(0, phase4_tb); 
+clk = 0; rst = 1; enable = 0; 
+#5 rst = 0; enable = 1; 
+// Correct sequence 
+press_plate(8'b10101010); 
+press_plate(8'b11001100); 
+press_plate(8'b11110000); 
+#20 $finish; 
+end 
+task press_plate(input [7:0] val); 
+begin 
+plate_in = val; 
+#10 clk = 1; #10 clk = 0; 
+end 
+endtask 
+endmodule 
+PHASE 5 
+DESIGN FILE  
+module phase5 ( 
+input clk, 
+input rst, 
+input enable, 
+output reg [1:0] time_lock_out, 
+output reg phase5_done, 
+output reg phase5_fail 
+); 
+parameter IDLE   = 3'd0, 
+STEP1  = 3'd1, 
+STEP2  = 3'd2, 
+STEP3  = 3'd3, 
+DONE   = 3'd4, 
+FAIL   = 3'd5; 
+reg [2:0] state, next_state; 
+reg [3:0] count; 
+always @(posedge clk or posedge rst) begin 
+if (rst) 
+state <= IDLE; 
+else if (enable) 
+state <= next_state; 
+end 
+always @(posedge clk or posedge rst) begin 
+if (rst) 
+count <= 0; 
+else if (enable && state != DONE && state != FAIL) 
+count <= count + 1; 
+end 
+always @(*) begin 
+next_state = state; 
+time_lock_out = 2'b00; 
+phase5_done = 0; 
+phase5_fail = 0; 
+case (state) 
+IDLE:   next_state = STEP1; 
+STEP1: begin 
+time_lock_out = 2'b01; 
+if (count == 2) next_state = STEP2; 
+end 
+STEP2: begin 
+time_lock_out = 2'b10; 
+if (count == 4) next_state = STEP3; 
+end 
+STEP3: begin 
+time_lock_out = 2'b11; 
+if (count == 6) next_state = DONE; 
+end 
+DONE: phase5_done = 1; 
+FAIL: phase5_fail = 1; 
+endcase 
+end 
+endmodule 
+TESTBENCH  
+module phase5_tb; 
+reg clk, rst, enable; 
+wire [1:0] time_lock_out; 
+wire phase5_done, phase5_fail; 
+phase5 uut ( 
+.clk(clk), .rst(rst), .enable(enable), 
+.time_lock_out(time_lock_out), 
+.phase5_done(phase5_done), 
+.phase5_fail(phase5_fail) 
+); 
+initial begin 
+$dumpfile("phase5.vcd"); 
+$dumpvars(0, phase5_tb); 
+clk = 0; rst = 1; enable = 0; 
+#5 rst = 0; enable = 1; 
+repeat (20) begin 
+#5 clk = 1; #5 clk = 0; 
+end 
+#10 $finish; 
+end 
+endmodule  
+TOP  MODULE INTEGRATION  
+module phase1 ( 
+input clk, 
+input rst, 
+input enable, 
+input serial_input, 
+output reg phase1_done, 
+output reg phase1_fail 
+); 
+// Simple example: phase1 completes after 10 clock cycles of enable 
+reg [3:0] count; 
+always @(posedge clk or posedge rst) begin 
+if (rst) begin 
+phase1_done <= 0; 
+phase1_fail <= 0; 
+count <= 0; 
+end else if (enable) begin 
+            if (count == 10) begin 
+                phase1_done <= 1; 
+                phase1_fail <= 0; 
+            end else begin 
+                count <= count + 1; 
+            end 
+        end else begin 
+            phase1_done <= 0; 
+            phase1_fail <= 0; 
+            count <= 0; 
+        end 
+    end 
+endmodule 
+module phase2 ( 
+    input clk, 
+    input rst, 
+    input enable, 
+    input switch_input, 
+    output reg phase2_done, 
+    output reg phase2_fail 
+); 
+    // Example: phase2 completes after detecting switch_input = 1 for 5 clocks 
+    reg [2:0] count; 
+ 
+    always @(posedge clk or posedge rst) begin 
+        if (rst) begin 
+            phase2_done <= 0; 
+            phase2_fail <= 0; 
+            count <= 0; 
+        end else if (enable) begin 
+            if (switch_input) begin 
+                if (count == 5) begin 
+                    phase2_done <= 1; 
+                    phase2_fail <= 0; 
+                end else begin 
+                    count <= count + 1; 
+                end 
+            end else begin 
+                count <= 0; 
+            end 
+        end else begin 
+            phase2_done <= 0; 
+            phase2_fail <= 0; 
+            count <= 0; 
+        end 
+    end 
+endmodule 
+module phase3 ( 
+    input clk, 
+    input rst, 
+    input enable, 
+    input [2:0] maze_input, 
+    output reg phase3_done, 
+    output reg phase3_fail 
+); 
+    // Expected sequence: 000, 011, 001, 010, 000 
+    reg [2:0] expected_seq [0:4]; 
+    reg [2:0] idx; 
+ 
+    initial begin 
+        expected_seq[0] = 3'b000; // UP 
+        expected_seq[1] = 3'b011; // RIGHT 
+        expected_seq[2] = 3'b001; // DOWN 
+        expected_seq[3] = 3'b010; // LEFT 
+        expected_seq[4] = 3'b000; // UP 
+    end 
+ 
+    always @(posedge clk or posedge rst) begin 
+        if (rst) begin 
+            phase3_done <= 0; 
+            phase3_fail <= 0; 
+            idx <= 0; 
+        end else if (enable) begin 
+            if (maze_input == expected_seq[idx]) begin 
+                if (idx == 4) begin 
+                    phase3_done <= 1; 
+                    phase3_fail <= 0; 
+                end else begin 
+                    idx <= idx + 1; 
+                end 
+            end else begin 
+                phase3_fail <= 1; 
+                phase3_done <= 0; 
+                idx <= 0; 
+            end 
+        end else begin 
+            phase3_done <= 0; 
+            phase3_fail <= 0; 
+            idx <= 0; 
+        end 
+end 
+endmodule 
+module phase4 ( 
+input clk, 
+input rst, 
+input enable, 
+input [7:0] plate_input1, 
+input [7:0] plate_input2, 
+input [7:0] plate_input3, 
+output reg phase4_done, 
+output reg phase4_fail 
+); 
+// Expected sequence: 10101010, 11001100, 11110000 
+reg [7:0] expected_seq [0:2]; 
+reg [1:0] idx; 
+reg [7:0] inputs [0:2]; 
+initial begin 
+expected_seq[0] = 8'b10101010; 
+expected_seq[1] = 8'b11001100; 
+expected_seq[2] = 8'b11110000; 
+end 
+always @(posedge clk or posedge rst) begin 
+if (rst) begin 
+phase4_done <= 0; 
+phase4_fail <= 0; 
+idx <= 0; 
+end else if (enable) begin 
+inputs[0] = plate_input1; 
+            inputs[1] = plate_input2; 
+            inputs[2] = plate_input3; 
+ 
+            if (inputs[idx] == expected_seq[idx]) begin 
+                if (idx == 2) begin 
+                    phase4_done <= 1; 
+                    phase4_fail <= 0; 
+                end else begin 
+                    idx <= idx + 1; 
+                end 
+            end else begin 
+                phase4_fail <= 1; 
+                phase4_done <= 0; 
+                idx <= 0; 
+            end 
+        end else begin 
+            phase4_done <= 0; 
+            phase4_fail <= 0; 
+            idx <= 0; 
+        end 
+    end 
+endmodule 
+module phase5 ( 
+    input clk, 
+    input rst, 
+    input enable, 
+    output reg [1:0] time_lock_out, 
+    output reg phase5_done, 
+    output reg phase5_fail 
+); 
+reg [1:0] step_count; 
+always @(posedge clk or posedge rst) begin 
+if (rst) begin 
+step_count <= 0; 
+time_lock_out <= 2'b00; 
+phase5_done <= 0; 
+phase5_fail <= 0; 
+end else if (enable) begin 
+case (step_count) 
+0: time_lock_out <= 2'b01; 
+1: time_lock_out <= 2'b10; 
+2: time_lock_out <= 2'b11; 
+default: time_lock_out <= 2'b00; 
+endcase 
+if (step_count == 3) begin 
+phase5_done <= 1; 
+phase5_fail <= 0; 
+end else begin 
+phase5_done <= 0; 
+phase5_fail <= 0; 
+step_count <= step_count + 1; 
+end 
+end else begin 
+step_count <= 0; 
+time_lock_out <= 2'b00; 
+phase5_done <= 0; 
+phase5_fail <= 0; 
+end 
+end 
+endmodule 
