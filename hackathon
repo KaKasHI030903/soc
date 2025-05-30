@@ -56,6 +56,7 @@ endcase
 end 
 endmodule 
 PHASE 1 
+
 TESTBENCH  
 module phase1_tb; 
 reg clk, rst, code_in, enable; 
@@ -82,6 +83,7 @@ code_in = val;
 end 
 endtask 
 endmodule 
+
 Phase 2 
 Design file  
 module phase2 ( 
@@ -136,6 +138,7 @@ CHECK: next_state = IDLE;
 endcase 
 end 
 endmodule 
+
 TEST BENCH  
 module phase2_tb; 
 reg clk, rst, enable, btn_in; 
@@ -162,6 +165,7 @@ btn_in = val;
 end 
 endtask 
 endmodule 
+
 Phase 3  
 Design file  
 module phase3 ( 
@@ -208,6 +212,7 @@ FAIL:   phase3_fail = 1;
 endcase 
 end 
 endmodule 
+
 TESTBENCH  
 module phase3_tb; 
 reg clk, rst, enable; 
@@ -239,6 +244,7 @@ dir_in = val;
 end 
 endtask 
 endmodule 
+
 Phase 4  
 Design file  
 module phase4 ( 
@@ -279,6 +285,7 @@ FAIL:   phase4_fail = 1;
 endcase 
 end 
 endmodule 
+
 TEST BENCH  
 module phase4_tb; 
 reg clk, rst, enable; 
@@ -308,6 +315,7 @@ plate_in = val;
 end 
 endtask 
 endmodule 
+
 PHASE 5 
 DESIGN FILE  
 module phase5 ( 
@@ -362,6 +370,7 @@ FAIL: phase5_fail = 1;
 endcase 
 end 
 endmodule 
+
 TESTBENCH  
 module phase5_tb; 
 reg clk, rst, enable; 
@@ -384,6 +393,7 @@ end
 #10 $finish; 
 end 
 endmodule  
+
 TOP  MODULE INTEGRATION  
 module phase1 ( 
 input clk, 
